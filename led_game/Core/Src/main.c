@@ -10,6 +10,31 @@
 #define PX1       1
 #define PX4       4
 #define PX5       5
+#define PC13      13
+
+//Initializing a couple variables
+uint16_t green = 2*PX0;
+uint16_t red = 2*PX1;
+uint16_t blue = 2*PX4;
+uint16_t yellow = 2*PX5;
+uint16_t start_button = 2*PC13;
+
+//Function to initialize the i/o
+static void io_init(void) {
+    //Configuring PA0,1,4, and 5 as outputs(LED)
+    GPIOA->MODER &= ~( (3u << green) | (3u << red) | (3u << blue) | (3u << yellow) ); // clear MODER
+    GPIOA->MODER |=  ( 1u << green | 1u << red | 1u << blue | 1u << yellow ); // set MODER --> 01
+
+    //Configuring PB0,1,4, and 5 as inputs(Buttons) with internal pull-ups
+    GPIOB->MODER &= ~( (3u << green) | (3u << red) | (3u << blue) | (3u << yellow) ); // clear MODER and set
+    GPIOB->MODER &= ~( (3u << green) | (3u << red) | (3u << blue) | (3u << yellow) ); // clear PUPDR
+    GPIOB->PUPDR |=  ( (1u << green) | (1u << red) | (1u << blue) | (1u << yellow) ); // set PUPDR --> 01
+
+    //Configuring PC13 as the Start button with internal pull-down
+    GPIOC->MODER &= ~( 3u << start_button ); // clear MODER
+    GPIOC->MODER |= ( 1u << start_button ); // set MODER --> 01
+    GPIOC->PUPDR |= ( 2u << start_button ); // set PUPDR --> 10
+}
 
 // Function to Initialize the UART
 static void uart2_init(void) {
@@ -73,31 +98,9 @@ int main(void) {
     //Enabling SYSCFG clock
     RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
 
-    //Initializing uart
+    //Calling required intiializing functions
+    io_init();
     uart2_init();
-
-    //Initializing a couple variables
-    uint16_t green = 2*PX0;
-    uint16_t red = 2*PX1;
-    uint16_t blue = 2*PX4;
-    uint16_t yellow = 2*PX5;
-
-    //Configuring PA0,1,4, and 5 as outputs(LED)
-    GPIOA->MODER &= ~( 3u << (green) | 3u << (red) | 3u << (blue) | 3u << (yellow) ); // clear MODER
-    GPIOA->MODER |=  ( 1u << (green) | 1u << (red) | 1u << (blue) | 1u << (yellow) ); // set MODER --> 01
-
-    //Configuring PB0,1,4, and 5 as inputs(Buttons) with internal pull-ups
-    GPIOB->MODER &= ~( 3u << (green) | 3u << (2*PX1) | 3u << (blue) | 3u << (yellow) ); // clear MODER and set
-    GPIOB->MODER &= ~( 3u << (green) | 3u << (red) | 3u << (blue) | 3u << (yellow) ); // clear PUPDR
-    GPIOB->PUPDR |=  ( 1u << (green) | 1u << (red) | 1u << (blue) | 1u << (yellow) ); // set PUPDR --> 01
-
-    GPIO_InitTypeDef GPIO_InitStruct = {0};
-
-    // Configure PC13 as input with pull-up resistor
-    GPIO_InitStruct.Pin = GPIO_PIN_13;
-    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;  
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
     // Connect PB0 to EXTI3
     SYSCFG->EXTICR[0] &= ~(0xF << (3 * 4));
@@ -164,7 +167,7 @@ int main(void) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
 
     uint8_t expectedResponse[128] = {0};
-    uint8_t receivedResponse[128] = {0};
+    // uint8_t receivedResponse[128] = {0};
     uint16_t roundNum = 0;
     while (1) {
         roundNum++;
