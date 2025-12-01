@@ -3,7 +3,9 @@
 #include "stm32f0xx_hal_gpio.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+
 
 // Initializing pin values for i/o
 #define PX0       0
@@ -32,7 +34,6 @@ static void io_init(void) {
 
     //Configuring PC13 as the Start button with internal pull-down
     GPIOC->MODER &= ~( 3u << start_button ); // clear MODER
-    GPIOC->MODER |= ( 1u << start_button ); // set MODER --> 01
     GPIOC->PUPDR |= ( 2u << start_button ); // set PUPDR --> 10
 }
 
@@ -168,6 +169,7 @@ int main(void) {
 
     uint8_t expectedResponse[128] = {0};
     // uint8_t receivedResponse[128] = {0};
+    srand(HAL_GetTick());
     uint16_t roundNum = 0;
     while (1) {
         roundNum++;
@@ -176,7 +178,7 @@ int main(void) {
         uart2_write(buffer);
 
         for (int i = 0; i < sizeof(expectedResponse); i++) {
-            int randomNumber = 1;
+            int randomNumber = rand() % 4;
             expectedResponse[i] = randomNumber;
 
             char buffer2[50];
