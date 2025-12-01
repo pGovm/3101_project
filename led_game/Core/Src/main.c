@@ -1,15 +1,17 @@
 #include "stm32f0xx.h"
+#include "stm32f0xx_hal.h"
+#include "stm32f0xx_hal_gpio.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
-
-//Initializing pin values for i/o
+// Initializing pin values for i/o
 #define PX0       0
 #define PX1       1
 #define PX4       4
 #define PX5       5
 
-//Function to Initialize the UART
+// Function to Initialize the UART
 static void uart2_init(void) {
     // Enable GPIOA and USART2 clocks
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
@@ -25,7 +27,6 @@ static void uart2_init(void) {
     USART2->CR2 = 0;             // Default settings
     USART2->CR3 = 0;             // No flow control
 
-    // Students will deduce baud rate and frame format from oscilloscope
     USART2->BRR = 0x0045;
     USART2->CR1 = USART_CR1_TE | USART_CR1_UE;
 
@@ -33,7 +34,7 @@ static void uart2_init(void) {
     USART2->CR1 |= USART_CR1_TE | USART_CR1_UE;
 }
 
-//Function to write to the UART
+// Function to write to the UART
 static void uart2_write(const char *data) {
     for(int i = 0; i < strlen(data); i++) {
       while (!(USART2->ISR & USART_ISR_TXE)) {
@@ -49,38 +50,138 @@ static void uart2_write(const char *data) {
     }
 }
 
-//Simple delay function between commands
+// Simple delay function between commands
 static void delay_ms(uint32_t ms) {
     for (uint32_t i = 0; i < ms * 800; ++i) {
         __NOP();
     }
 }
 
+void EXTI2_3_IRQHandler(void) {
+    if (EXTI->PR & EXTI_PR_PR3) {       // Check if EXTI line 3 triggered
+        EXTI->PR |= EXTI_PR_PR3;        // Clear the pending flag
+        GPIOA->ODR ^= (1 << 5);         // Toggle LED on PA5
+        uart2_write("button 1 pushed\r\n");
+        delay_ms(20);  
+    }
+}
+
 int main(void) {
-  //Enabling GPIO clocks for Ports A and B
-  RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN;
+    //Enabling GPIO clocks for Ports A, B, and C
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN | RCC_AHBENR_GPIOCEN;
 
-  //Enabling SYSCFG clock
-  RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
+    //Enabling SYSCFG clock
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
 
-  //Initializing uart
-  uart2_init();
+    //Initializing uart
+    uart2_init();
 
-  //Initializing a couple variables
-  uint16_t green = 2*PX0;
-  uint16_t red = 2*PX1;
-  uint16_t blue = 2*PX4;
-  uint16_t yellow = 2*PX5;
+    //Initializing a couple variables
+    uint16_t green = 2*PX0;
+    uint16_t red = 2*PX1;
+    uint16_t blue = 2*PX4;
+    uint16_t yellow = 2*PX5;
 
-  //Configuring PA0,1,4, and 5 as outputs(LED)
-  GPIOA->MODER &= ~( 3u << (green) | 3u << (red) | 3u << (blue) | 3u << (yellow) ); // clear MODER
-  GPIOA->MODER |=  ( 1u << (green) | 1u << (red) | 1u << (blue) | 1u << (yellow) ); // set MODER --> 01
+    //Configuring PA0,1,4, and 5 as outputs(LED)
+    GPIOA->MODER &= ~( 3u << (green) | 3u << (red) | 3u << (blue) | 3u << (yellow) ); // clear MODER
+    GPIOA->MODER |=  ( 1u << (green) | 1u << (red) | 1u << (blue) | 1u << (yellow) ); // set MODER --> 01
 
-  //Configuring PB0,1,4, and 5 as inputs(Buttons) with internal pull-ups
-  GPIOB->MODER &= ~( 3u << (green) | 3u << (2*PX1) | 3u << (blue) | 3u << (yellow) ); // clear MODER and set
-  GPIOB->MODER &= ~( 3u << (green) | 3u << (red) | 3u << (blue) | 3u << (yellow) ); // clear PUPDR
-  GPIOB->PUPDR |=  ( 1u << (green) | 1u << (red) | 1u << (blue) | 1u << (yellow) ); // set PUPDR --> 01
+    //Configuring PB0,1,4, and 5 as inputs(Buttons) with internal pull-ups
+    GPIOB->MODER &= ~( 3u << (green) | 3u << (2*PX1) | 3u << (blue) | 3u << (yellow) ); // clear MODER and set
+    GPIOB->MODER &= ~( 3u << (green) | 3u << (red) | 3u << (blue) | 3u << (yellow) ); // clear PUPDR
+    GPIOB->PUPDR |=  ( 1u << (green) | 1u << (red) | 1u << (blue) | 1u << (yellow) ); // set PUPDR --> 01
 
-  uart2_write("Press USER button (PC13) to start.");
-  delay_ms(1000);
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    // Configure PC13 as input with pull-up resistor
+    GPIO_InitStruct.Pin = GPIO_PIN_13;
+    GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;  
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+    // Connect PB0 to EXTI3
+    SYSCFG->EXTICR[0] &= ~(0xF << (3 * 4));
+    SYSCFG->EXTICR[0] |= (0x1 << (3 * 4));  // Port B = 0001
+
+    // Unmask EXTI3
+    EXTI->IMR |= (1 << 3);
+    // Trigger on falling edge
+    EXTI->FTSR |= (1 << 3);
+
+    // Enable EXTI2_3 interrupt in NVIC
+    NVIC_EnableIRQ(EXTI2_3_IRQn);
+
+
+    uart2_write("Press USER button (PC13) to start.\r\n");
+    delay_ms(100);
+
+    // Idle animations until user button is pressed
+    while((HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET)) { 
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delay_ms(50);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delay_ms(50);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delay_ms(50);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delay_ms(50);
+    }
+
+    // Game start
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
+    uart2_write("Starting game...\r\n");
+    delay_ms(500);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+
+    uint8_t expectedResponse[128] = {0};
+    uint8_t receivedResponse[128] = {0};
+    uint16_t roundNum = 0;
+    while (1) {
+        roundNum++;
+        char buffer[50];
+        sprintf(buffer, "New Round: length=%d\r\n", roundNum);
+        uart2_write(buffer);
+
+        for (int i = 0; i < sizeof(expectedResponse); i++) {
+            int randomNumber = 1;
+            expectedResponse[i] = randomNumber;
+
+            char buffer2[50];
+            sprintf(buffer2, "Random num: %d\r\n", randomNumber);
+            uart2_write(buffer2);
+        }
+        break;
+
+        
+    }
 }
