@@ -170,7 +170,7 @@ int main(void) {
     uint8_t expectedResponse[128] = {0};
     // uint8_t receivedResponse[128] = {0};
     srand(HAL_GetTick());
-    uint16_t roundNum = 0;
+    uint16_t roundNum = 0; //Counter for number of rounds elapsed
     while (1) {
         roundNum++;
         char buffer[50];
@@ -179,10 +179,42 @@ int main(void) {
 
         for (int i = 0; i < sizeof(expectedResponse); i++) {
             int randomNumber = rand() % 4;
+
             expectedResponse[i] = randomNumber;
 
             char buffer2[50];
-            sprintf(buffer2, "Random num: %d\r\n", randomNumber);
+            // sprintf(buffer2, "Random num: %d\r\n", randomNumber);
+            switch (randomNumber) {
+              case 0:
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+                  delay_ms(100);
+                  break;
+              case 1:
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+                  delay_ms(100);
+                  break;
+              case 2:
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+                  delay_ms(100);
+                  break;
+              case 3:
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+                  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
+                  delay_ms(100);
+                  break;
+                
+            }
             uart2_write(buffer2);
         }
         break;
