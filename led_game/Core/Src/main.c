@@ -8,6 +8,7 @@
 
 uint16_t buttonCounter = 0;
 uint8_t receivedResponse[128] = {0};
+uint32_t lastButtonPress = 0;
 
 // Initializing pin values for i/o
 #define PX0       0
@@ -80,17 +81,23 @@ static void uart2_write(const char *data) {
 
 // Simple delay function between commands
 static void delay_ms(uint32_t ms) {
-    for (uint32_t i = 0; i < ms * 800; ++i) {
+    for (uint32_t i = 0; i < ms * 1000; ++i) {
         __NOP();
     }
 }
 
 void EXTI0_1_IRQHandler(void) {
+    char buffer[100];
+    sprintf(buffer, "%d", HAL_GetTick() - lastButtonPress);
+    if ((HAL_GetTick() - lastButtonPress) < 20) {
+        return;
+    }
+    delay_ms(20);
     if (EXTI->PR & EXTI_PR_PR0) {       // Check if EXTI line 0 triggered
         EXTI->PR |= EXTI_PR_PR0;        // Clear the pending flag
         GPIOA->ODR |= (1 << 0);         // Set LED on PA0
         uart2_write("LED 0 ON\r\n");
-        delay_ms(250);
+        delay_ms(200);
         GPIOA->ODR &= ~(1 << 0);         // Clear LED on PA0  
         uart2_write("LED 0 OFF\r\n");
         receivedResponse[buttonCounter] = 0;
@@ -100,20 +107,26 @@ void EXTI0_1_IRQHandler(void) {
         EXTI->PR |= EXTI_PR_PR1;        // Clear the pending flag
         GPIOA->ODR |= (1 << 1);         // Set LED on PA1
         uart2_write("LED 1 ON\r\n");
-        delay_ms(250);
+        delay_ms(200);
         GPIOA->ODR &= ~(1 << 1);         // Clear LED on PA1  
         uart2_write("LED 1 OFF\r\n");
         receivedResponse[buttonCounter] = 1;
     }
     buttonCounter++;
+    lastButtonPress = HAL_GetTick();
+    
 }
 
 void EXTI4_15_IRQHandler(void) {
+    if (HAL_GetTick() - lastButtonPress <= 200 ) {
+        return;
+    }
+    delay_ms(20);
     if (EXTI->PR & EXTI_PR_PR4) {       // Check if EXTI line 4 triggered
         EXTI->PR |= EXTI_PR_PR4;        // Clear the pending flag
         GPIOA->ODR |= (1 << 4);         // Set LED on PA4
         uart2_write("LED 2 ON\r\n");
-        delay_ms(250);
+        delay_ms(200);
         GPIOA->ODR &= ~(1 << 4);         // Clear LED on PA4  
         uart2_write("LED 2 OFF\r\n");
         receivedResponse[buttonCounter] = 2;
@@ -123,12 +136,13 @@ void EXTI4_15_IRQHandler(void) {
         EXTI->PR |= EXTI_PR_PR5;        // Clear the pending flag
         GPIOA->ODR |= (1 << 5);         // Set LED on PA5
         uart2_write("LED 3 ON\r\n");
-        delay_ms(250);
+        delay_ms(200);
         GPIOA->ODR &= ~(1 << 5);         // Clear LED on PA5  
         uart2_write("LED 3 OFF\r\n");
         receivedResponse[buttonCounter] = 3;
     }
     buttonCounter++;
+    lastButtonPress = HAL_GetTick();
 }
 
 int main(void) {
@@ -190,6 +204,9 @@ int main(void) {
 
     // Idle animations until user button is pressed
     while((HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET)) { 
+        char buffer[50];
+        sprintf(buffer, "%u", HAL_GetTick());
+        uart2_write(buffer);
         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
