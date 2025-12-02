@@ -103,7 +103,7 @@ int main(void) {
     io_init();
     uart2_init();
 
-    // Connect PB0 to EXTI3
+    // Connect PB4 to EXTI3
     SYSCFG->EXTICR[0] &= ~(0xF << (3 * 4));
     SYSCFG->EXTICR[0] |= (0x1 << (3 * 4));  // Port B = 0001
 
@@ -118,6 +118,10 @@ int main(void) {
 
     uart2_write("Press USER button (PC13) to start.\r\n");
     delay_ms(100);
+
+    while(1){
+        
+    }
 
     // Idle animations until user button is pressed
     while((HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET)) { 
@@ -167,9 +171,18 @@ int main(void) {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
 
-    uint8_t expectedResponse[128] = {0};
-    // uint8_t receivedResponse[128] = {0};
+    // Generate the random sequence pattern
     srand(HAL_GetTick());
+    uint8_t expectedResponse[128] = {0};
+    for (int i = 0; i < sizeof(expectedResponse); i++) {
+        int randomNumber = rand() % 4;
+        expectedResponse[i] = randomNumber;
+        if(i > 4 && expectedResponse[i] == expectedResponse[i-1] && expectedResponse[i-2] ) {
+            expectedResponse[i] = (randomNumber + 1) % 4;
+        }
+    }
+
+    // uint8_t receivedResponse[128] = {0};
     uint16_t roundNum = 0; //Counter for number of rounds elapsed
     while (1) {
         roundNum++;
@@ -177,48 +190,52 @@ int main(void) {
         sprintf(buffer, "New Round: length=%d\r\n", roundNum);
         uart2_write(buffer);
 
-        for (int i = 0; i < sizeof(expectedResponse); i++) {
-            int randomNumber = rand() % 4;
+        for (int i = 0; i < roundNum; i++) {
+            sprintf(buffer, "Num %d, Random num: %d\r\n", i, expectedResponse[i]);
+            uart2_write(buffer);
 
-            expectedResponse[i] = randomNumber;
-
-            char buffer2[50];
-            // sprintf(buffer2, "Random num: %d\r\n", randomNumber);
-            switch (randomNumber) {
+            switch (expectedResponse[i]) {
               case 0:
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-                  delay_ms(100);
                   break;
               case 1:
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-                  delay_ms(100);
                   break;
               case 2:
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-                  delay_ms(100);
                   break;
               case 3:
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
                   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
-                  delay_ms(100);
                   break;
-                
             }
-            uart2_write(buffer2);
+            
+            delay_ms(100);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+            delay_ms(50);
         }
-        break;
-
-        
+        if (roundNum >= sizeof(expectedResponse)) {
+            uart2_write("Game over, you win!\r\n");
+            break;
+        }
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+        delay_ms(1000);
     }
 }
