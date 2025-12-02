@@ -28,9 +28,9 @@ static void io_init(void) {
     GPIOA->MODER |=  ( 1u << green | 1u << red | 1u << blue | 1u << yellow ); // set MODER --> 01
 
     //Configuring PB0,1,4, and 5 as inputs(Buttons) with internal pull-ups
-    GPIOB->MODER &= ~( (3u << green) | (3u << red) | (3u << blue) | (3u << yellow) ); // clear MODER and set
-    GPIOB->MODER &= ~( (3u << green) | (3u << red) | (3u << blue) | (3u << yellow) ); // clear PUPDR
-    GPIOB->PUPDR |=  ( (1u << green) | (1u << red) | (1u << blue) | (1u << yellow) ); // set PUPDR --> 01
+    GPIOB->MODER &= ~( (3u << green) | (3u << red) | (3u << blue) | (3u << yellow) | (3u << (2*3)) ); // clear MODER and set
+    GPIOB->MODER &= ~( (3u << green) | (3u << red) | (3u << blue) | (3u << yellow) | (3u << (2*3)) ); // clear PUPDR
+    GPIOB->PUPDR |=  ( (1u << green) | (1u << red) | (1u << blue) | (1u << yellow) | (3u << (2*3)) ); // set PUPDR --> 01
 
     //Configuring PC13 as the Start button with internal pull-down
     GPIOC->MODER &= ~( 3u << start_button ); // clear MODER
@@ -83,12 +83,21 @@ static void delay_ms(uint32_t ms) {
     }
 }
 
-void EXTI2_3_IRQHandler(void) {
-    if (EXTI->PR & EXTI_PR_PR3) {       // Check if EXTI line 3 triggered
-        EXTI->PR |= EXTI_PR_PR3;        // Clear the pending flag
+void EXTI4_15_IRQHandler(void) {
+    if (EXTI->PR & EXTI_PR_PR4) {       // Check if EXTI line 4 triggered
+        EXTI->PR |= EXTI_PR_PR4;        // Clear the pending flag
+        GPIOA->ODR ^= (1 << 4);         // Toggle LED on PA4
+        uart2_write("button 2 pushed\r\n");
+        delay_ms(20);  
+    }
+}
+
+void EXTI0_1_IRQHandler(void) {
+    if (EXTI->PR & EXTI_PR_PR0) {       // Check if EXTI line 0 triggered
+        EXTI->PR |= EXTI_PR_PR0;        // Clear the pending flag
         GPIOA->ODR ^= (1 << 5);         // Toggle LED on PA5
         uart2_write("button 1 pushed\r\n");
-        delay_ms(20);  
+        delay_ms(100);  
     }
 }
 
@@ -104,16 +113,28 @@ int main(void) {
     uart2_init();
 
     // Connect PB4 to EXTI3
-    SYSCFG->EXTICR[0] &= ~(0xF << (3 * 4));
-    SYSCFG->EXTICR[0] |= (0x1 << (3 * 4));  // Port B = 0001
+    SYSCFG->EXTICR[1] &= ~(0xF << (0)); // Clearing EXTI 4 bits
+    SYSCFG->EXTICR[1] |= (0x1 << (0));  // Port B = 0001
 
-    // Unmask EXTI3
-    EXTI->IMR |= (1 << 3);
+    // Connect PB0 to EXTI3
+    SYSCFG->EXTICR[0] &= ~(0xF << (0)); // Clearing EXTI 0 bits
+    SYSCFG->EXTICR[0] |= (0x1 << (0));  // Port B = 0001
+
+    // Unmask EXTI4
+    EXTI->IMR |= (1 << 4);
     // Trigger on falling edge
-    EXTI->FTSR |= (1 << 3);
+    EXTI->FTSR |= (1 << 4);
 
-    // Enable EXTI2_3 interrupt in NVIC
-    NVIC_EnableIRQ(EXTI2_3_IRQn);
+    // Unmask EXTI0
+    EXTI->IMR |= (1 << 0);
+    // Trigger on falling edge
+    EXTI->FTSR |= (1 << 0);
+
+    // Enable EXTI4_15 interrupt in NVIC
+    NVIC_EnableIRQ(EXTI4_15_IRQn);
+
+    // Enable EXTI0_1 interrupt in NVIC
+    NVIC_EnableIRQ(EXTI0_1_IRQn);
 
 
     uart2_write("Press USER button (PC13) to start.\r\n");
