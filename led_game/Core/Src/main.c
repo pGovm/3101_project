@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+uint16_t buttonCounter = 0;
+uint8_t receivedResponse[128] = {0};
 
 // Initializing pin values for i/o
 #define PX0       0
@@ -87,40 +89,46 @@ void EXTI0_1_IRQHandler(void) {
     if (EXTI->PR & EXTI_PR_PR0) {       // Check if EXTI line 0 triggered
         EXTI->PR |= EXTI_PR_PR0;        // Clear the pending flag
         GPIOA->ODR |= (1 << 0);         // Set LED on PA0
-        uart2_write("LED 1 ON\r\n");
+        uart2_write("LED 0 ON\r\n");
         delay_ms(250);
         GPIOA->ODR &= ~(1 << 0);         // Clear LED on PA0  
-        uart2_write("LED 1 OFF\r\n");
+        uart2_write("LED 0 OFF\r\n");
+        receivedResponse[buttonCounter] = 0;
     }
 
     if (EXTI->PR & EXTI_PR_PR1) {       // Check if EXTI line 1 triggered
         EXTI->PR |= EXTI_PR_PR1;        // Clear the pending flag
         GPIOA->ODR |= (1 << 1);         // Set LED on PA1
-        uart2_write("LED 2 ON\r\n");
+        uart2_write("LED 1 ON\r\n");
         delay_ms(250);
         GPIOA->ODR &= ~(1 << 1);         // Clear LED on PA1  
-        uart2_write("LED 2 OFF\r\n");
+        uart2_write("LED 1 OFF\r\n");
+        receivedResponse[buttonCounter] = 1;
     }
+    buttonCounter++;
 }
 
 void EXTI4_15_IRQHandler(void) {
     if (EXTI->PR & EXTI_PR_PR4) {       // Check if EXTI line 4 triggered
         EXTI->PR |= EXTI_PR_PR4;        // Clear the pending flag
         GPIOA->ODR |= (1 << 4);         // Set LED on PA4
-        uart2_write("LED 3 ON\r\n");
+        uart2_write("LED 2 ON\r\n");
         delay_ms(250);
         GPIOA->ODR &= ~(1 << 4);         // Clear LED on PA4  
-        uart2_write("LED 3 OFF\r\n");
+        uart2_write("LED 2 OFF\r\n");
+        receivedResponse[buttonCounter] = 2;
     }
 
     if (EXTI->PR & EXTI_PR_PR5) {       // Check if EXTI line 5 triggered
         EXTI->PR |= EXTI_PR_PR5;        // Clear the pending flag
         GPIOA->ODR |= (1 << 5);         // Set LED on PA5
-        uart2_write("LED 4 ON\r\n");
+        uart2_write("LED 3 ON\r\n");
         delay_ms(250);
         GPIOA->ODR &= ~(1 << 5);         // Clear LED on PA5  
-        uart2_write("LED 4 OFF\r\n");
+        uart2_write("LED 3 OFF\r\n");
+        receivedResponse[buttonCounter] = 3;
     }
+    buttonCounter++;
 }
 
 int main(void) {
@@ -179,10 +187,6 @@ int main(void) {
 
     uart2_write("Press USER button (PC13) to start.\r\n");
     delay_ms(100);
-
-    while(1){
-        
-    }
 
     // Idle animations until user button is pressed
     while((HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET)) { 
@@ -243,11 +247,12 @@ int main(void) {
         }
     }
 
-    // uint8_t receivedResponse[128] = {0};
+    
     uint16_t roundNum = 0; //Counter for number of rounds elapsed
+    uint8_t success = 1;
     while (1) {
         roundNum++;
-        char buffer[50];
+        char buffer[128];
         sprintf(buffer, "New Round: length=%d\r\n", roundNum);
         uart2_write(buffer);
 
@@ -289,6 +294,30 @@ int main(void) {
             HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
             delay_ms(50);
         }
+
+        uart2_write("Your Turn!\r\n");
+
+        while(buttonCounter != roundNum) {
+
+        }
+
+        for(int i = 0; i < roundNum; i++) {
+            if(expectedResponse[i] != receivedResponse[i]) {\
+                sprintf(buffer, "Wrong input at turn %d (expected %d, got %d)\r\n", i, expectedResponse[i], receivedResponse[i]);
+                uart2_write(buffer);
+                uart2_write("Game over!\r\n");
+                success = 0;
+                break;
+            }
+        }
+        if(success) {
+            buttonCounter = 0;
+        } else {
+            sprintf(buffer, "You made it to round %d. Good job (if its above 5)\r\n", roundNum);
+            uart2_write(buffer);
+            break;
+        }
+
         if (roundNum >= sizeof(expectedResponse)) {
             uart2_write("Game over, you win!\r\n");
             break;
