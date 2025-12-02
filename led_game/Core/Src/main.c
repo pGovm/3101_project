@@ -87,11 +87,11 @@ static void delay_ms(uint32_t ms) {
 }
 
 void EXTI0_1_IRQHandler(void) {
-    char buffer[100];
-    sprintf(buffer, "%d", HAL_GetTick() - lastButtonPress);
-    if ((HAL_GetTick() - lastButtonPress) < 20) {
-        return;
-    }
+    // char buffer[100];
+    // sprintf(buffer, "%d", HAL_GetTick() - lastButtonPress);
+    // if ((HAL_GetTick() - lastButtonPress) < 20) {
+    //     return;
+    // }
     delay_ms(20);
     if (EXTI->PR & EXTI_PR_PR0) {       // Check if EXTI line 0 triggered
         EXTI->PR |= EXTI_PR_PR0;        // Clear the pending flag
@@ -118,9 +118,9 @@ void EXTI0_1_IRQHandler(void) {
 }
 
 void EXTI4_15_IRQHandler(void) {
-    if (HAL_GetTick() - lastButtonPress <= 200 ) {
-        return;
-    }
+    // if (HAL_GetTick() - lastButtonPress <= 200 ) {
+    //     return;
+    // }
     delay_ms(20);
     if (EXTI->PR & EXTI_PR_PR4) {       // Check if EXTI line 4 triggered
         EXTI->PR |= EXTI_PR_PR4;        // Clear the pending flag
@@ -145,7 +145,75 @@ void EXTI4_15_IRQHandler(void) {
     lastButtonPress = HAL_GetTick();
 }
 
+void idleAnimations(){
+    while((HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET)) { 
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delay_ms(50);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delay_ms(50);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delay_ms(50);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delay_ms(50);
+    }
+}
+
+void gameOver() {
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
+    delay_ms(100);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
+    delay_ms(100);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delay_ms(100);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delay_ms(1000);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delay_ms(1000);
+}
+
 int main(void) {
+    HAL_Init();
+    HAL_SYSTICK_Config(SystemCoreClock / 1000);
+
     //Enabling GPIO clocks for Ports A, B, and C
     RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN | RCC_AHBENR_GPIOCEN;
 
@@ -203,43 +271,7 @@ int main(void) {
     delay_ms(100);
 
     // Idle animations until user button is pressed
-    while((HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET)) { 
-        char buffer[50];
-        sprintf(buffer, "%u", HAL_GetTick());
-        uart2_write(buffer);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-            break;
-        }
-        delay_ms(50);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-            break;
-        }
-        delay_ms(50);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-            break;
-        }
-        delay_ms(50);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
-        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-            break;
-        }
-        delay_ms(50);
-    }
+    idleAnimations();
 
     // Game start
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
@@ -268,6 +300,12 @@ int main(void) {
     uint16_t roundNum = 0; //Counter for number of rounds elapsed
     uint8_t success = 1;
     while (1) {
+
+        // Makes sure that button counter is reset if a button other than the start is clicked
+        if(buttonCounter != 0) {
+            buttonCounter = 0;
+        }
+
         roundNum++;
         char buffer[128];
         sprintf(buffer, "New Round: length=%d\r\n", roundNum);
@@ -314,8 +352,13 @@ int main(void) {
 
         uart2_write("Your Turn!\r\n");
 
+        uint32_t lastInputTime = HAL_GetTick();;
         while(buttonCounter != roundNum) {
-
+            if(HAL_GetTick() - lastInputTime > 10000) {
+                uart2_write("Timeout! You took too long to respond.\r\n");
+                success = 0;
+                break;
+            }
         }
 
         for(int i = 0; i < roundNum; i++) {
@@ -330,6 +373,7 @@ int main(void) {
         if(success) {
             buttonCounter = 0;
         } else {
+            gameOver();
             sprintf(buffer, "You made it to round %d. Good job (if its above 5)\r\n", roundNum);
             uart2_write(buffer);
             break;
