@@ -83,21 +83,43 @@ static void delay_ms(uint32_t ms) {
     }
 }
 
-void EXTI4_15_IRQHandler(void) {
-    if (EXTI->PR & EXTI_PR_PR4) {       // Check if EXTI line 4 triggered
-        EXTI->PR |= EXTI_PR_PR4;        // Clear the pending flag
-        GPIOA->ODR ^= (1 << 4);         // Toggle LED on PA4
-        uart2_write("button 2 pushed\r\n");
-        delay_ms(20);  
-    }
-}
-
 void EXTI0_1_IRQHandler(void) {
     if (EXTI->PR & EXTI_PR_PR0) {       // Check if EXTI line 0 triggered
         EXTI->PR |= EXTI_PR_PR0;        // Clear the pending flag
-        GPIOA->ODR ^= (1 << 5);         // Toggle LED on PA5
-        uart2_write("button 1 pushed\r\n");
-        delay_ms(100);  
+        GPIOA->ODR |= (1 << 0);         // Set LED on PA0
+        uart2_write("LED 1 ON\r\n");
+        delay_ms(250);
+        GPIOA->ODR &= ~(1 << 0);         // Clear LED on PA0  
+        uart2_write("LED 1 OFF\r\n");
+    }
+
+    if (EXTI->PR & EXTI_PR_PR1) {       // Check if EXTI line 1 triggered
+        EXTI->PR |= EXTI_PR_PR1;        // Clear the pending flag
+        GPIOA->ODR |= (1 << 1);         // Set LED on PA1
+        uart2_write("LED 2 ON\r\n");
+        delay_ms(250);
+        GPIOA->ODR &= ~(1 << 1);         // Clear LED on PA1  
+        uart2_write("LED 2 OFF\r\n");
+    }
+}
+
+void EXTI4_15_IRQHandler(void) {
+    if (EXTI->PR & EXTI_PR_PR4) {       // Check if EXTI line 4 triggered
+        EXTI->PR |= EXTI_PR_PR4;        // Clear the pending flag
+        GPIOA->ODR |= (1 << 4);         // Set LED on PA4
+        uart2_write("LED 3 ON\r\n");
+        delay_ms(250);
+        GPIOA->ODR &= ~(1 << 4);         // Clear LED on PA4  
+        uart2_write("LED 3 OFF\r\n");
+    }
+
+    if (EXTI->PR & EXTI_PR_PR5) {       // Check if EXTI line 5 triggered
+        EXTI->PR |= EXTI_PR_PR5;        // Clear the pending flag
+        GPIOA->ODR |= (1 << 5);         // Set LED on PA5
+        uart2_write("LED 4 ON\r\n");
+        delay_ms(250);
+        GPIOA->ODR &= ~(1 << 5);         // Clear LED on PA5  
+        uart2_write("LED 4 OFF\r\n");
     }
 }
 
@@ -112,23 +134,41 @@ int main(void) {
     io_init();
     uart2_init();
 
+    // Connect PB0 to EXTI3
+    SYSCFG->EXTICR[0] &= ~(0xF << (0)); // Clearing EXTI 0 bits
+    SYSCFG->EXTICR[0] |= (0x1 << (0));  // Port B = 0001
+
+    // Connect PB1 to EXTI3
+    SYSCFG->EXTICR[0] &= ~(0xF << (1 * 4)); // Clearing EXTI 4 bits
+    SYSCFG->EXTICR[0] |= (0x1 << (1 * 4));  // Port B = 0001
+
     // Connect PB4 to EXTI3
     SYSCFG->EXTICR[1] &= ~(0xF << (0)); // Clearing EXTI 4 bits
     SYSCFG->EXTICR[1] |= (0x1 << (0));  // Port B = 0001
 
-    // Connect PB0 to EXTI3
-    SYSCFG->EXTICR[0] &= ~(0xF << (0)); // Clearing EXTI 0 bits
-    SYSCFG->EXTICR[0] |= (0x1 << (0));  // Port B = 0001
+    // Connect PB5 to EXTI3
+    SYSCFG->EXTICR[1] &= ~(0xF << (1 * 4)); // Clearing EXTI 4 bits
+    SYSCFG->EXTICR[1] |= (0x1 << (1 * 4));  // Port B = 0001
+
+    // Unmask EXTI0
+    EXTI->IMR |= (1 << 0);
+    // Trigger on falling edge
+    EXTI->FTSR |= (1 << 0);
+
+    // Unmask EXTI1
+    EXTI->IMR |= (1 << 1);
+    // Trigger on falling edge
+    EXTI->FTSR |= (1 << 1);
 
     // Unmask EXTI4
     EXTI->IMR |= (1 << 4);
     // Trigger on falling edge
     EXTI->FTSR |= (1 << 4);
 
-    // Unmask EXTI0
-    EXTI->IMR |= (1 << 0);
+    // Unmask EXTI5
+    EXTI->IMR |= (1 << 5);
     // Trigger on falling edge
-    EXTI->FTSR |= (1 << 0);
+    EXTI->FTSR |= (1 << 5);
 
     // Enable EXTI4_15 interrupt in NVIC
     NVIC_EnableIRQ(EXTI4_15_IRQn);
