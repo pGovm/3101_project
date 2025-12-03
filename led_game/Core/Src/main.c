@@ -397,10 +397,14 @@ int main(void) {
                 if ((ledFlag != 0)) {
                     lastInputTime = currentInputTime;
                     currentInputTime = HAL_GetTick();
+
+                    // Debouncing, if next input is less than 20ms, that is basically always bounce
                     if (currentInputTime - lastInputTime < 20) {
                         uart2Write("Bounce detected!\r\n");
                         ledFlag = 0;
                     }
+
+                    // Says what LED was pushed, saves it to the user input array
                     if (ledFlag == 1) {
                         uart2Write("LED 1\r\n");
                         receivedResponse[buttonCounter] = 0;
@@ -415,6 +419,8 @@ int main(void) {
                         receivedResponse[buttonCounter] = 3;
                     }
                     ledFlash();
+
+                    //Checking if input matches the led sequence shown before
                     if( (expectedResponse[buttonCounter] != receivedResponse[buttonCounter]) && receivedResponse[buttonCounter] != 5) {
                         sprintf(buffer, "Wrong input at turn %d (expected %d, got %d)\r\n", buttonCounter, expectedResponse[buttonCounter], receivedResponse[buttonCounter]);
                         uart2Write(buffer);
@@ -431,25 +437,17 @@ int main(void) {
                     success = 0;
                     break;
                 }
-
-                //Checking if input matches the led sequence shown before
                 
             }
 
+            // If PC13 is clicked at all during the game, it will restart
             if(restartFlag) {
                 uart2Write("Game restarted by user.\r\n");
                 restartFlag = 0;
                 break;
             }
-            // for(int i = 0; i < roundNum; i++) {
-            //     if( (expectedResponse[i] != receivedResponse[i] ) && receivedResponse[i] != 5) {
-            //         sprintf(buffer, "Wrong input at turn %d (expected %d, got %d)\r\n", i, expectedResponse[i], receivedResponse[i]);
-            //         uart2Write(buffer);
-            //         uart2Write("Game over!\r\n");
-            //         success = 0;
-            //         break;
-            //     }
-            // }
+
+            // If round succeeds, reset button counter, go to the next iteration. Otherwise, game over, and print the results
             if(success) {
                 buttonCounter = 0;
             } else {
@@ -464,11 +462,7 @@ int main(void) {
                 uart2Write("Game over, you win!\r\n");
                 break;
             }
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-            delayMs(250);
+            ledOff();
         }
     }
 }
