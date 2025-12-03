@@ -26,6 +26,8 @@ uint16_t buttonCounter = 0;
 uint8_t receivedResponse[128];
 uint32_t currentInputTime = 0;
 uint32_t lastInputTime = 0;
+uint16_t highScore;
+uint16_t score = 0;
 
 //Function to initialize the i/o
 static void ioInit(void) {
@@ -134,50 +136,30 @@ static void delayMs(uint32_t ms) {
 }
 
 void EXTI0_1_IRQHandler(void) {
+    // Button 1 pushed
     if (EXTI->PR & EXTI_PR_PR0) {       // Check if EXTI line 0 triggered
         EXTI->PR |= EXTI_PR_PR0;        // Clear the pending flag
         ledFlag = 1;
-        // GPIOA->ODR |= (1 << 0);         // Set LED on PA0
-        // uart2Write("LED 0 ON\r\n");
-        // delayMs(100);
-        // GPIOA->ODR &= ~(1 << 0);         // Clear LED on PA0  
-        // uart2Write("LED 0 OFF\r\n\n");
-        // receivedResponse[buttonCounter] = 0;
     }
 
+    // Button 2 pushed
     if (EXTI->PR & EXTI_PR_PR1) {       // Check if EXTI line 1 triggered
         EXTI->PR |= EXTI_PR_PR1;        // Clear the pending flag
         ledFlag = 2;
-        // GPIOA->ODR |= (1 << 1);         // Set LED on PA1
-        // uart2Write("LED 1 ON\r\n");
-        // delayMs(100);
-        // GPIOA->ODR &= ~(1 << 1);         // Clear LED on PA1  
-        // uart2Write("LED 1 OFF\r\n\n");
-        // receivedResponse[buttonCounter] = 1;
     }
 }
 
 void EXTI4_15_IRQHandler(void) {
+    // Button 3 pushed
     if (EXTI->PR & EXTI_PR_PR4) {       // Check if EXTI line 4 triggered
         EXTI->PR |= EXTI_PR_PR4;        // Clear the pending flag
         ledFlag = 3;
-        // GPIOA->ODR |= (1 << 4);         // Set LED on PA4
-        // uart2Write("LED 2 ON\r\n");
-        // delayMs(100);
-        // GPIOA->ODR &= ~(1 << 4);         // Clear LED on PA4  
-        // uart2Write("LED 2 OFF\r\n\n");
-        // receivedResponse[buttonCounter] = 2;
     }
 
+    // Button 4 pushed
     if (EXTI->PR & EXTI_PR_PR5) {       // Check if EXTI line 5 triggered
         EXTI->PR |= EXTI_PR_PR5;        // Clear the pending flag
         ledFlag = 4;
-        // GPIOA->ODR |= (1 << 5);         // Set LED on PA5
-        // uart2Write("LED 3 ON\r\n");
-        // delayMs(100);
-        // GPIOA->ODR &= ~(1 << 5);         // Clear LED on PA5  
-        // uart2Write("LED 3 OFF\r\n\n");
-        // receivedResponse[buttonCounter] = 3;
     }
 }
 
@@ -256,40 +238,28 @@ void gameOver() {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
     delayMs(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    ledOff();
     delayMs(50);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
     delayMs(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    ledOff();
     delayMs(50);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
     delayMs(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    ledOff();
     delayMs(50);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
     delayMs(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    ledOff();
     delayMs(50);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
@@ -301,14 +271,11 @@ void gameOver() {
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
     delayMs(250);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    ledOff();
 }
 
 int main(void) {
-//INITIALIZATION
+    //INITIALIZATION
     HAL_Init();
     HAL_SYSTICK_Config(SystemCoreClock / 1000);
 
@@ -323,15 +290,16 @@ int main(void) {
     uart2Init();
     extiInit();
 
-//MAIN WHILE LOOP
-    while(1) {
-        // Creates an array of "5"s to indicate no button presses yet
+    // Creates an array of "5"s to indicate no button presses yet
         for (int i = 0; i < sizeof(receivedResponse); i++) {
             receivedResponse[i] = 5;
         }
 
         uart2Write("Press USER button (PC13) to start.\r\n");
         delayMs(100);
+
+    // MAIN WHILE LOOP. Waits for pc13 to be clicked, initalizes the random numbers
+    while(1) {
 
         // Idle animations until user button is pressed
         idleAnimations();
@@ -354,12 +322,12 @@ int main(void) {
             expectedResponse[i] = randomNumber;
         }
         
-
         uint16_t roundNum = 0; // Counter for number of rounds elapsed
         uint8_t success = 1;
         uint8_t restartFlag = 0;
-
-        //GAME LOOP
+        
+        lastInputTime = HAL_GetTick();
+        // GAME LOOP. Does checking for time, also checks user inputs.
         while (1) {
 
             roundNum++;
@@ -370,7 +338,7 @@ int main(void) {
             }
 
             char buffer[128];
-            sprintf(buffer, "New Round: length=%d\r\n", roundNum);
+            sprintf(buffer, "New Round! length=%d\r\n", roundNum);
             uart2Write(buffer);
 
             for (int i = 0; i < roundNum; i++) {
@@ -385,7 +353,6 @@ int main(void) {
 
             uart2Write("Your Turn!\r\n");
 
-            // uint32_t lastInputTime = HAL_GetTick();
             while(buttonCounter != roundNum) {
                 //Checking if user wants to restart the game
                 if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
@@ -422,6 +389,7 @@ int main(void) {
 
                     //Checking if input matches the led sequence shown before
                     if( (expectedResponse[buttonCounter] != receivedResponse[buttonCounter]) && receivedResponse[buttonCounter] != 5) {
+                        gameOver();
                         sprintf(buffer, "Wrong input at turn %d (expected %d, got %d)\r\n", buttonCounter, expectedResponse[buttonCounter], receivedResponse[buttonCounter]);
                         uart2Write(buffer);
                         uart2Write("Game over!\r\n");
@@ -450,16 +418,18 @@ int main(void) {
             // If round succeeds, reset button counter, go to the next iteration. Otherwise, game over, and print the results
             if(success) {
                 buttonCounter = 0;
+                score++;
             } else {
-                gameOver();
-                sprintf(buffer, "You made it till round %d. Good job (if its above 5)\r\n", roundNum);
+                if (score > highScore) { highScore = score; }
+                sprintf(buffer, "Your Score: %d\rHigh Score: %d\r\n", score, highScore);
                 uart2Write(buffer);
+                uart2Write("\nTo Restart: Press USER button (PC13)\r\n");
                 break;
             }
 
             // If you make it this far just win idc
             if (roundNum >= sizeof(expectedResponse)) {
-                uart2Write("Game over, you win!\r\n");
+                uart2Write("Congratulations, You Won the Game!\r\n");
                 break;
             }
             ledOff();
