@@ -6,9 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-uint16_t buttonCounter = 0;
-uint8_t receivedResponse[128];
-
 // Initializing pin values for i/o
 #define PX0       0
 #define PX1       1
@@ -16,15 +13,20 @@ uint8_t receivedResponse[128];
 #define PX5       5
 #define PC13      13
 
-//Initializing a couple variables
+//Initializing led-related variables
 uint16_t green = 2*PX0;
 uint16_t red = 2*PX1;
 uint16_t blue = 2*PX4;
 uint16_t yellow = 2*PX5;
 uint16_t start_button = 2*PC13;
+uint8_t ledFlag = 0;
+
+//Initializing game-related variables
+uint16_t buttonCounter = 0;
+uint8_t receivedResponse[128];
 
 //Function to initialize the i/o
-static void io_init(void) {
+static void ioInit(void) {
     //Configuring PA0,1,4, and 5 as outputs(LED)
     GPIOA->MODER &= ~( (3u << green) | (3u << red) | (3u << blue) | (3u << yellow) ); // clear MODER
     GPIOA->MODER |=  ( 1u << green | 1u << red | 1u << blue | 1u << yellow ); // set MODER --> 01
@@ -40,7 +42,7 @@ static void io_init(void) {
 }
 
 // Function to Initialize the UART
-static void uart2_init(void) {
+static void uart2Init(void) {
     // Enable GPIOA and USART2 clocks
     RCC->APB1ENR |= RCC_APB1ENR_USART2EN;
 
@@ -62,193 +64,13 @@ static void uart2_init(void) {
     USART2->CR1 |= USART_CR1_TE | USART_CR1_UE;
 }
 
-// Function to write to the UART
-static void uart2_write(const char *data) {
-    for(int i = 0; i < strlen(data); i++) {
-      while (!(USART2->ISR & USART_ISR_TXE)) {
-        // Wait until transmit data register is empty
-      }
-
-      USART2->TDR = data[i];
-    
-    
-      while (!(USART2->ISR & USART_ISR_TC)) {
-          // Wait for transmission complete
-      }
-    }
-}
-
-// Simple delay function between commands
-static void delay_ms(uint32_t ms) {
-    for (uint32_t i = 0; i < ms * 1000; ++i) {
-        __NOP();
-    }
-}
-
-void EXTI0_1_IRQHandler(void) {
-    if (EXTI->PR & EXTI_PR_PR0) {       // Check if EXTI line 0 triggered
-        EXTI->PR |= EXTI_PR_PR0;        // Clear the pending flag
-        GPIOA->ODR |= (1 << 0);         // Set LED on PA0
-        uart2_write("LED 0 ON\r\n");
-        delay_ms(100);
-        GPIOA->ODR &= ~(1 << 0);         // Clear LED on PA0  
-        uart2_write("LED 0 OFF\r\n");
-        receivedResponse[buttonCounter] = 0;
-    }
-
-    if (EXTI->PR & EXTI_PR_PR1) {       // Check if EXTI line 1 triggered
-        EXTI->PR |= EXTI_PR_PR1;        // Clear the pending flag
-        GPIOA->ODR |= (1 << 1);         // Set LED on PA1
-        uart2_write("LED 1 ON\r\n");
-        delay_ms(100);
-        GPIOA->ODR &= ~(1 << 1);         // Clear LED on PA1  
-        uart2_write("LED 1 OFF\r\n");
-        receivedResponse[buttonCounter] = 1;
-    }
-    delay_ms(50);
-    buttonCounter++;    
-}
-
-void EXTI4_15_IRQHandler(void) {
-    if (EXTI->PR & EXTI_PR_PR4) {       // Check if EXTI line 4 triggered
-        EXTI->PR |= EXTI_PR_PR4;        // Clear the pending flag
-        GPIOA->ODR |= (1 << 4);         // Set LED on PA4
-        uart2_write("LED 2 ON\r\n");
-        delay_ms(100);
-        GPIOA->ODR &= ~(1 << 4);         // Clear LED on PA4  
-        uart2_write("LED 2 OFF\r\n");
-        receivedResponse[buttonCounter] = 2;
-    }
-
-    if (EXTI->PR & EXTI_PR_PR5) {       // Check if EXTI line 5 triggered
-        EXTI->PR |= EXTI_PR_PR5;        // Clear the pending flag
-        GPIOA->ODR |= (1 << 5);         // Set LED on PA5
-        uart2_write("LED 3 ON\r\n");
-        delay_ms(100);
-        GPIOA->ODR &= ~(1 << 5);         // Clear LED on PA5  
-        uart2_write("LED 3 OFF\r\n");
-        receivedResponse[buttonCounter] = 3;
-    }
-    delay_ms(50);
-    buttonCounter++;
-}
-
-void idleAnimations(){
-    while((HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET)) { 
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-            break;
-        }
-        delay_ms(50);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-            break;
-        }
-        delay_ms(50);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-            break;
-        }
-        delay_ms(50);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
-        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
-            break;
-        }
-        delay_ms(50);
-    }
-}
-
-void gameOver() {
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
-    delay_ms(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-    delay_ms(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
-    delay_ms(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-    delay_ms(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-    delay_ms(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-    delay_ms(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-    delay_ms(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-    delay_ms(50);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-    delay_ms(250);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-    delay_ms(250);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-}
-
-
-
-int main(void) {
-    HAL_Init();
-    HAL_SYSTICK_Config(SystemCoreClock / 1000);
-
-    //Enabling GPIO clocks for Ports A, B, and C
-    RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN | RCC_AHBENR_GPIOCEN;
-
-    //Enabling SYSCFG clock
-    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
-
-    //Calling required intiializing functions
-    io_init();
-    uart2_init();
-
-    // Connect PB0 to EXTI3
+static void extiInit(void) {
+// Connect PB0 to EXTI3
     SYSCFG->EXTICR[0] &= ~(0xF << (0)); // Clearing EXTI 0 bits
     SYSCFG->EXTICR[0] |= (0x1 << (0));  // Port B = 0001
 
     // Connect PB1 to EXTI3
-    SYSCFG->EXTICR[0] &= ~(0xF << (1 * 4)); // Clearing EXTI 4 bits
+    SYSCFG->EXTICR[0] &= ~(0xF << (1 * 4)); // Clearing EXTI 1 bits
     SYSCFG->EXTICR[0] |= (0x1 << (1 * 4));  // Port B = 0001
 
     // Connect PB4 to EXTI3
@@ -256,7 +78,7 @@ int main(void) {
     SYSCFG->EXTICR[1] |= (0x1 << (0));  // Port B = 0001
 
     // Connect PB5 to EXTI3
-    SYSCFG->EXTICR[1] &= ~(0xF << (1 * 4)); // Clearing EXTI 4 bits
+    SYSCFG->EXTICR[1] &= ~(0xF << (1 * 4)); // Clearing EXTI 5 bits
     SYSCFG->EXTICR[1] |= (0x1 << (1 * 4));  // Port B = 0001
 
     // Unmask EXTI0
@@ -284,33 +106,255 @@ int main(void) {
 
     // Enable EXTI0_1 interrupt in NVIC
     NVIC_EnableIRQ(EXTI0_1_IRQn);
+}
 
+// Function to write to the UART
+static void uart2Write(const char *data) {
+    for(int i = 0; i < strlen(data); i++) {
+      while (!(USART2->ISR & USART_ISR_TXE)) {
+        // Wait until transmit data register is empty
+      }
+
+      USART2->TDR = data[i];
+    
+    
+      while (!(USART2->ISR & USART_ISR_TC)) {
+          // Wait for transmission complete
+      }
+    }
+}
+
+// Simple delay function between commands
+static void delayMs(uint32_t ms) {
+    for (uint32_t i = 0; i < ms * 1000; ++i) {
+        __NOP();
+    }
+}
+
+void EXTI0_1_IRQHandler(void) {
+    if (EXTI->PR & EXTI_PR_PR0) {       // Check if EXTI line 0 triggered
+        EXTI->PR |= EXTI_PR_PR0;        // Clear the pending flag
+        GPIOA->ODR |= (1 << 0);         // Set LED on PA0
+        uart2Write("LED 0 ON\r\n");
+        delayMs(100);
+        GPIOA->ODR &= ~(1 << 0);         // Clear LED on PA0  
+        uart2Write("LED 0 OFF\r\n\n");
+        receivedResponse[buttonCounter] = 0;
+    }
+
+    if (EXTI->PR & EXTI_PR_PR1) {       // Check if EXTI line 1 triggered
+        EXTI->PR |= EXTI_PR_PR1;        // Clear the pending flag
+        GPIOA->ODR |= (1 << 1);         // Set LED on PA1
+        uart2Write("LED 1 ON\r\n");
+        delayMs(100);
+        GPIOA->ODR &= ~(1 << 1);         // Clear LED on PA1  
+        uart2Write("LED 1 OFF\r\n\n");
+        receivedResponse[buttonCounter] = 1;
+    }
+    delayMs(50);
+    buttonCounter++;    
+}
+
+void EXTI4_15_IRQHandler(void) {
+    if (EXTI->PR & EXTI_PR_PR4) {       // Check if EXTI line 4 triggered
+        EXTI->PR |= EXTI_PR_PR4;        // Clear the pending flag
+        GPIOA->ODR |= (1 << 4);         // Set LED on PA4
+        uart2Write("LED 2 ON\r\n");
+        delayMs(100);
+        GPIOA->ODR &= ~(1 << 4);         // Clear LED on PA4  
+        uart2Write("LED 2 OFF\r\n\n");
+        receivedResponse[buttonCounter] = 2;
+    }
+
+    if (EXTI->PR & EXTI_PR_PR5) {       // Check if EXTI line 5 triggered
+        EXTI->PR |= EXTI_PR_PR5;        // Clear the pending flag
+        GPIOA->ODR |= (1 << 5);         // Set LED on PA5
+        uart2Write("LED 3 ON\r\n");
+        delayMs(100);
+        GPIOA->ODR &= ~(1 << 5);         // Clear LED on PA5  
+        uart2Write("LED 3 OFF\r\n\n");
+        receivedResponse[buttonCounter] = 3;
+    }
+    delayMs(50);
+    buttonCounter++;
+}
+
+//Encapsulating a repeated line of code into a simple function
+static void ledOff(void) {
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+}
+
+void idleAnimations(){
+    while((HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_SET)) { 
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delayMs(50);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delayMs(50);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delayMs(50);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
+        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
+            break;
+        }
+        delayMs(50);
+    }
+}
+
+void ledFlash(uint8_t ledNum) {
+    switch (ledNum) {
+        case 1:
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+            break;
+        case 2:
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+            break;
+        case 3:
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+            break;
+        case 4:
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+            // HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+            HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
+            break;
+        default:
+            break;
+        }
+        delayMs(50);
+        ledOff();
+        delayMs(100);
+}
+
+void gameOver() {
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
+    delayMs(50);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delayMs(50);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
+    delayMs(50);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delayMs(50);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delayMs(50);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delayMs(50);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delayMs(50);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delayMs(50);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delayMs(250);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+    delayMs(250);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
+    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
+}
+
+int main(void) {
+//INITIALIZATION
+    HAL_Init();
+    HAL_SYSTICK_Config(SystemCoreClock / 1000);
+
+    //Enabling GPIO clocks for Ports A, B, and C
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN | RCC_AHBENR_GPIOCEN;
+
+    //Enabling SYSCFG clock
+    RCC->APB2ENR |= RCC_APB2ENR_SYSCFGCOMPEN;
+
+    //Calling required intiializing functions
+    ioInit();
+    uart2Init();
+    extiInit();
+
+//MAIN WHILE LOOP
     while(1) {
         // Creates an array of "5"s to indicate no button presses yet
         for (int i = 0; i < sizeof(receivedResponse); i++) {
             receivedResponse[i] = 5;
         }
 
-        uart2_write("Press USER button (PC13) to start.\r\n");
-        delay_ms(100);
+        uart2Write("Press USER button (PC13) to start.\r\n");
+        delayMs(100);
 
         // Idle animations until user button is pressed
         idleAnimations();
 
-        // Game start
+        // Game start animation
         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
-        uart2_write("Starting game...\r\n");
-        delay_ms(250);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-        delay_ms(250);
+        uart2Write("Starting game...\r\n");
+        delayMs(250);
+        ledOff();
+        delayMs(250);
 
-        // Generate the random sequence pattern
+        // Generating a random sequence pattern
         srand(HAL_GetTick());
         uint8_t expectedResponse[128] = {0};
         for (int i = 0; i < sizeof(expectedResponse); i++) {
@@ -326,58 +370,34 @@ int main(void) {
         uint8_t success = 1;
         uint8_t restartFlag = 0;
 
+        //GAME LOOP
         while (1) {
-            
+
+            roundNum++;
+
             // Makes sure that button counter is reset if a button other than the start is clicked
             if(buttonCounter != 0) {
                 buttonCounter = 0;
             }
 
-            roundNum++;
             char buffer[128];
             sprintf(buffer, "New Round: length=%d\r\n", roundNum);
-            uart2_write(buffer);
+            uart2Write(buffer);
 
             for (int i = 0; i < roundNum; i++) {
-                sprintf(buffer, "Num %d, Random num: %d\r\n", i, expectedResponse[i]);
-                uart2_write(buffer);
+                sprintf(buffer, "Element %d, LED num: %d\r\n", i, expectedResponse[i] + 1);
+                uart2Write(buffer);
 
-                switch (expectedResponse[i]) {
-                case 0:
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 1);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-                    break;
-                case 1:
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 1);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-                    break;
-                case 2:
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 1);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-                    break;
-                case 3:
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
-                    HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 1);
-                    break;
-                }
+                ledFlash(expectedResponse[i] + 1);
                 
-                delay_ms(100);
                 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
                 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
                 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
                 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-                delay_ms(50);
+                delayMs(50);
             }
 
-            uart2_write("Your Turn!\r\n");
+            uart2Write("Your Turn!\r\n");
 
             uint32_t lastInputTime = HAL_GetTick();;
             while(buttonCounter != roundNum) {
@@ -386,30 +406,30 @@ int main(void) {
                     break;
                 }
                 if(HAL_GetTick() - lastInputTime > 10000) {
-                    uart2_write("Timeout! You took too long to respond.\r\n");
+                    uart2Write("Timeout! You took too long to respond.\r\n");
                     success = 0;
                     break;
                 }
 
                 if( (expectedResponse[buttonCounter] != receivedResponse[buttonCounter]) && receivedResponse[buttonCounter] != 5) {
                     sprintf(buffer, "Wrong input at turn %d (expected %d, got %d)\r\n", buttonCounter, expectedResponse[buttonCounter], receivedResponse[buttonCounter]);
-                    uart2_write(buffer);
-                    uart2_write("Game over!\r\n");
+                    uart2Write(buffer);
+                    uart2Write("Game over!\r\n");
                     success = 0;
                     break;
                 }
             }
 
             if(restartFlag) {
-                uart2_write("Game restarted by user.\r\n");
+                uart2Write("Game restarted by user.\r\n");
                 restartFlag = 0;
                 break;
             }
             for(int i = 0; i < roundNum; i++) {
                 if( (expectedResponse[i] != receivedResponse[i] ) && receivedResponse[i] != 5) {
                     sprintf(buffer, "Wrong input at turn %d (expected %d, got %d)\r\n", i, expectedResponse[i], receivedResponse[i]);
-                    uart2_write(buffer);
-                    uart2_write("Game over!\r\n");
+                    uart2Write(buffer);
+                    uart2Write("Game over!\r\n");
                     success = 0;
                     break;
                 }
@@ -418,20 +438,20 @@ int main(void) {
                 buttonCounter = 0;
             } else {
                 gameOver();
-                sprintf(buffer, "You made it to round %d. Good job (if its above 5)\r\n", roundNum);
-                uart2_write(buffer);
+                sprintf(buffer, "You made it till round %d. Good job (if its above 5)\r\n", roundNum);
+                uart2Write(buffer);
                 break;
             }
 
             if (roundNum >= sizeof(expectedResponse)) {
-                uart2_write("Game over, you win!\r\n");
+                uart2Write("Game over, you win!\r\n");
                 break;
             }
             HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0, 0);
             HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, 0);
             HAL_GPIO_WritePin(GPIOA, GPIO_PIN_4, 0);
             HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, 0);
-            delay_ms(250);
+            delayMs(250);
         }
     }
 }
