@@ -276,7 +276,7 @@ void gameOver() {
 
 int main(void) {
     //INITIALIZATION
-    HAL_Init();
+        HAL_Init();
     HAL_SYSTICK_Config(SystemCoreClock / 1000);
 
     //Enabling GPIO clocks for Ports A, B, and C
@@ -389,9 +389,9 @@ int main(void) {
 
                     //Checking if input matches the led sequence shown before
                     if( (expectedResponse[buttonCounter] != receivedResponse[buttonCounter]) && receivedResponse[buttonCounter] != 5) {
-                        gameOver();
-                        sprintf(buffer, "Wrong input at turn %d (expected %d, got %d)\r\n", buttonCounter, expectedResponse[buttonCounter], receivedResponse[buttonCounter]);
+                        sprintf(buffer, "\r\nWrong input at turn %d (expected %d, got %d)\r\n", buttonCounter, expectedResponse[buttonCounter], receivedResponse[buttonCounter]);
                         uart2Write(buffer);
+                        gameOver();
                         uart2Write("Game over!\r\n");
                         success = 0;
                         break;
@@ -417,6 +417,11 @@ int main(void) {
 
             // If round succeeds, reset button counter, go to the next iteration. Otherwise, game over, and print the results
             if(success) {
+                uart2Write("Yay! You pass this round\r\n");
+                ledFlag = receivedResponse[buttonCounter - 1] + 1;
+                ledOff();
+                delayMs(50);
+                ledFlash();
                 buttonCounter = 0;
                 score++;
             } else {
