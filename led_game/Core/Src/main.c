@@ -276,7 +276,7 @@ void gameOver() {
 
 int main(void) {
     //INITIALIZATION
-        HAL_Init();
+    HAL_Init();
     HAL_SYSTICK_Config(SystemCoreClock / 1000);
 
     //Enabling GPIO clocks for Ports A, B, and C
@@ -291,12 +291,12 @@ int main(void) {
     extiInit();
 
     // Creates an array of "5"s to indicate no button presses yet
-        for (int i = 0; i < sizeof(receivedResponse); i++) {
-            receivedResponse[i] = 5;
-        }
+    for (int i = 0; i < sizeof(receivedResponse); i++) {
+        receivedResponse[i] = 5;
+    }
 
-        uart2Write("Press USER button (PC13) to start.\r\n");
-        delayMs(100);
+    uart2Write("Press USER button (PC13) to start.\r\n");
+    delayMs(100);
 
     // MAIN WHILE LOOP. Waits for pc13 to be clicked, initalizes the random numbers
     while(1) {
@@ -326,7 +326,7 @@ int main(void) {
         uint8_t success = 1;
         uint8_t restartFlag = 0;
         
-        lastInputTime = HAL_GetTick();
+        currentInputTime = HAL_GetTick();
         // GAME LOOP. Does checking for time, also checks user inputs.
         while (1) {
 
@@ -354,6 +354,7 @@ int main(void) {
             uart2Write("Your Turn!\r\n");
 
             while(buttonCounter != roundNum) {
+                uint32_t roundTimer = HAL_GetTick();
                 //Checking if user wants to restart the game
                 if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13) == GPIO_PIN_RESET) {
                     restartFlag = 1;
@@ -389,9 +390,9 @@ int main(void) {
 
                     //Checking if input matches the led sequence shown before
                     if( (expectedResponse[buttonCounter] != receivedResponse[buttonCounter]) && receivedResponse[buttonCounter] != 5) {
-                        sprintf(buffer, "\r\nWrong input at turn %d (expected %d, got %d)\r\n", buttonCounter, expectedResponse[buttonCounter], receivedResponse[buttonCounter]);
-                        uart2Write(buffer);
                         gameOver();
+                        sprintf(buffer, "Wrong input at turn %d (expected %d, got %d)\r\n", buttonCounter, expectedResponse[buttonCounter], receivedResponse[buttonCounter]);
+                        uart2Write(buffer);
                         uart2Write("Game over!\r\n");
                         success = 0;
                         break;
@@ -400,7 +401,7 @@ int main(void) {
                 }
 
                 //Time limit for each round
-                if(HAL_GetTick() - lastInputTime > 10000) {
+                if(roundTimer - currentInputTime > 10000) {
                     uart2Write("Timeout! You took too long to respond.\r\n");
                     success = 0;
                     break;
@@ -412,23 +413,25 @@ int main(void) {
             if(restartFlag) {
                 uart2Write("Game restarted by user.\r\n");
                 restartFlag = 0;
+                currentInputTime = HAL_GetTick();
                 break;
             }
 
             // If round succeeds, reset button counter, go to the next iteration. Otherwise, game over, and print the results
             if(success) {
-                uart2Write("Yay! You pass this round\r\n");
-                ledFlag = receivedResponse[buttonCounter - 1] + 1;
-                ledOff();
-                delayMs(50);
-                ledFlash();
                 buttonCounter = 0;
+                ledFlag = expectedResponse[roundNum - 1] + 1;
+                ledFlash();
+                delayMs(500);
                 score++;
+                currentInputTime = HAL_GetTick();
             } else {
                 if (score > highScore) { highScore = score; }
                 sprintf(buffer, "Your Score: %d\rHigh Score: %d\r\n", score, highScore);
                 uart2Write(buffer);
                 uart2Write("\nTo Restart: Press USER button (PC13)\r\n");
+                currentInputTime = HAL_GetTick();
+                restartFlag = 0;
                 break;
             }
 
